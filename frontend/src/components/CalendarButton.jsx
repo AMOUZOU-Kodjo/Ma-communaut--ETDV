@@ -2,514 +2,229 @@ import React, { useState, useMemo, useEffect } from "react";
 import { api } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  X, 
-  Clock, 
-  MapPin,
-  Download,
-  Share2,
-  Bell,
-  Check
+  Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, Clock, MapPin,
+  Download, Share2, Bell, Check, List, Grid3X3, ChevronRight as ArrowRight
 } from "lucide-react";
 
-// ==================== CONFIGURATION DU CALENDRIER ====================
-const CALENDAR_CONFIG = {
-  // Jours de la semaine
-  weekDays: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
-  
-  // Mois de l'année
-  months: [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-  ],
-  
-  // Événements du calendrier (chargés depuis l'API)
-  events: [] /*
-    {
-      id: 1,
-      title: "Séance des Jeunes",
-      date: "2024-03-18",
-      time: "18:00 - 19:00",
-      location: "Salle Polyvalente",
-      type: "jeunes",
-      color: "from-blue-500 to-cyan-500",
-      description: "Étude biblique et partage pour les jeunes"
-    },
-    {
-      id: 2,
-      title: "Étude Biblique",
-      date: "2024-03-19",
-      time: "18:00 - 19:00",
-      location: "Salle d'étude",
-      type: "etude",
-      color: "from-green-500 to-emerald-500",
-      description: "Approfondissement de la parole de Dieu"
-    },
-    {
-      id: 3,
-      title: "Culte de Prière",
-      date: "2024-03-20",
-      time: "18:00 - 19:00",
-      location: "Sanctuaire",
-      type: "priere",
-      color: "from-purple-500 to-pink-500",
-      description: "Soirée de prière et d'intercession"
-    },
-    {
-      id: 4,
-      title: "Enseignement",
-      date: "2024-03-21",
-      time: "18:00 - 19:00",
-      location: "Salle Polyvalente",
-      type: "etude",
-      color: "from-orange-500 to-amber-500",
-      description: "Enseignement approfondi"
-    },
-    {
-      id: 5,
-      title: "Louange et Adoration",
-      date: "2024-03-22",
-      time: "18:00 - 19:00",
-      location: "Sanctuaire",
-      type: "louange",
-      color: "from-red-500 to-rose-500",
-      description: "Soirée de louange intense"
-    },
-    {
-      id: 6,
-      title: "Réveil Spirituel",
-      date: "2024-03-23",
-      time: "18:00 - 19:00",
-      location: "Sanctuaire",
-      type: "special",
-      color: "from-indigo-500 to-blue-500",
-      description: "Moment de réveil spirituel"
-    },
-    {
-      id: 7,
-      title: "Culte d'Action de Grâce",
-      date: "2024-04-07",
-      time: "09:00 - 12:00",
-      location: "Sanctuaire",
-      type: "special",
-      color: "from-yellow-500 to-amber-500",
-      description: "Célébration spéciale"
-    },
-    {
-      id: 8,
-      title: "Conférence Annuelle",
-      date: "2024-07-15",
-      time: "09:00 - 18:00",
-      location: "Sanctuaire",
-      type: "conference",
-      color: "from-purple-500 to-pink-500",
-      description: "Conférence avec des orateurs invités"
-    }
-  ]*/
+const WEEKDAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const MONTHS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+];
+
+const DAY_MAP = { dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6 };
+
+const COLOR_DOT = {
+  accent: "bg-accent", primary: "bg-primary", secondary: "bg-secondary",
+  info: "bg-info", success: "bg-success", warning: "bg-warning", error: "bg-error",
 };
 
-// ==================== COMPOSANT MINI CALENDRIER ====================
-const MiniCalendar = ({ currentDate, onDateChange, events, onEventClick }) => {
+const getNextDayDate = (dayName) => {
+  const target = DAY_MAP[dayName?.toLowerCase()];
+  if (target === undefined) return null;
+  const today = new Date();
+  const current = today.getDay();
+  let diff = target - current;
+  if (diff <= 0) diff += 7;
+  const d = new Date(today);
+  d.setDate(d.getDate() + diff);
+  return d;
+};
+
+const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const progToEvents = (programs) => {
+  const events = [];
+  programs.forEach((p) => {
+    if (p.day) {
+      const d = getNextDayDate(p.day);
+      if (d) events.push({ ...p, date: toDateStr(d), _computed: true });
+    } else if (p.week || p.month) {
+      events.push({ ...p, date: p.dates || null });
+    } else {
+      events.push({ ...p, date: null });
+    }
+  });
+  return events;
+};
+
+const MiniCalendar = ({ currentDate, onDateSelect, events }) => {
   const [viewDate, setViewDate] = useState(currentDate || new Date());
 
-  const getDaysInMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
 
-  const getFirstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const formatDate = (date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
-
-  const daysInMonth = getDaysInMonth(viewDate);
-  const firstDay = getFirstDayOfMonth(viewDate);
   const days = [];
-
-  // Jours vides avant le premier jour du mois
-  for (let i = 0; i < firstDay; i++) {
-    days.push(null);
-  }
-
-  // Jours du mois
+  for (let i = 0; i < firstDay; i++) days.push(null);
   for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = formatDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), i));
-    const dayEvents = events.filter(e => e.date === dateStr);
-    days.push({ day: i, events: dayEvents });
+    const ds = toDateStr(new Date(viewDate.getFullYear(), viewDate.getMonth(), i));
+    days.push({ day: i, date: ds, evts: events.filter(e => e.date === ds) });
   }
-
-  const changeMonth = (delta) => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + delta, 1));
-  };
-
-  const goToToday = () => {
-    setViewDate(new Date());
-  };
 
   return (
-    <div className="bg-base-100 rounded-xl shadow-lg p-4">
-      {/* En-tête du calendrier */}
+    <div className="bg-base-100 rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">
-          {CALENDAR_CONFIG.months[viewDate.getMonth()]} {viewDate.getFullYear()}
-        </h3>
-        <div className="flex gap-2">
-          <button
-            onClick={goToToday}
-            className="p-2 hover:bg-base-200 rounded-lg transition-colors text-sm"
-          >
-            Aujourd'hui
-          </button>
-          <button
-            onClick={() => changeMonth(-1)}
-            className="p-2 hover:bg-base-200 rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => changeMonth(1)}
-            className="p-2 hover:bg-base-200 rounded-lg transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <h3 className="text-lg font-semibold">{MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}</h3>
+        <div className="flex gap-1">
+          <button onClick={() => setViewDate(new Date())} className="btn btn-ghost btn-xs">Auj.</button>
+          <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="btn btn-ghost btn-xs p-1"><ChevronLeft size={16} /></button>
+          <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="btn btn-ghost btn-xs p-1"><ChevronRight size={16} /></button>
         </div>
       </div>
 
-      {/* Jours de la semaine */}
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {CALENDAR_CONFIG.weekDays.map((day) => (
-          <div key={day} className="text-center text-sm font-medium text-base-content/60">
-            {day}
-          </div>
-        ))}
+        {WEEKDAYS.map(d => <div key={d} className="text-center text-xs font-medium text-base-content/50">{d}</div>)}
       </div>
 
-      {/* Grille des jours */}
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day, index) => (
-          <div
-            key={index}
-            className={`
-              aspect-square p-1 rounded-lg transition-all
-              ${day ? 'hover:bg-base-200 cursor-pointer' : ''}
-              ${day?.events.length > 0 ? 'bg-accent/5' : ''}
-            `}
-            onClick={() => day && onDateChange && onDateChange(day.day)}
-          >
-            {day && (
-              <div className="h-full flex flex-col">
-                <span className={`
-                  text-sm font-medium
-                  ${day.events.length > 0 ? 'text-accent' : ''}
-                `}>
-                  {day.day}
-                </span>
-                {day.events.length > 0 && (
-                  <div className="flex gap-0.5 mt-1">
-                    {day.events.slice(0, 3).map((event, i) => (
-                      <div
-                        key={i}
-                        className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${event.color}`}
-                        title={event.title}
-                      />
+        {days.map((d, i) => {
+          const isToday = d && d.date === toDateStr(new Date());
+          return (
+            <div key={i}
+              onClick={() => d && onDateSelect?.(d.date)}
+              className={`relative aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer text-sm transition-all
+                ${isToday ? 'bg-accent text-white font-bold' : 'hover:bg-base-200'}
+                ${!d ? '' : ''}`}
+            >
+              {d && <>
+                <span>{d.day}</span>
+                {d.evts.length > 0 && (
+                  <div className="flex gap-0.5 mt-0.5">
+                    {d.evts.slice(0, 4).map((ev, j) => (
+                      <span key={j} className={`w-1 h-1 rounded-full ${COLOR_DOT[ev.color] || 'bg-accent'}`} />
                     ))}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        ))}
+              </>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-// ==================== COMPOSANT ÉVÉNEMENT DU JOUR ====================
-const DayEvent = ({ event, onClick }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
-      className={`
-        p-3 rounded-lg cursor-pointer border-l-4
-        bg-gradient-to-r ${event.color} bg-opacity-5
-        hover:shadow-md transition-all
-      `}
-      style={{
-        borderLeftColor: event.color.split(' ')[1].replace('from-', '')
-      }}
-      onClick={() => onClick(event)}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h4 className="font-semibold text-sm mb-1">{event.title}</h4>
-          <div className="flex items-center gap-2 text-xs text-base-content/70">
-            <Clock className="w-3 h-3" />
-            <span>{event.time}</span>
-          </div>
-          {event.location && (
-            <div className="flex items-center gap-2 text-xs text-base-content/70 mt-1">
-              <MapPin className="w-3 h-3" />
-              <span>{event.location}</span>
-            </div>
-          )}
-        </div>
-        <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${event.color}`} />
-      </div>
-    </motion.div>
-  );
-};
-
-// ==================== COMPOSANT MODAL CALENDRIER ====================
 const CalendarModal = ({ isOpen, onClose, events, onEventClick }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState('month'); // 'month' ou 'list'
+  const [viewMode, setViewMode] = useState('month');
+  const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()));
 
-  const formatDateForDisplay = (date) => {
-    return date.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const dayEvents = useMemo(() => events.filter(e => e.date === selectedDate), [events, selectedDate]);
 
-  const getEventsForSelectedDate = () => {
-    const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-    return events.filter(e => e.date === dateStr);
-  };
+  const sorted = useMemo(() => [...events].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date)), [events]);
 
-  const downloadCalendar = () => {
-    // Créer un fichier ICS pour l'import dans les calendriers
-    const eventsICS = events.map(event => {
-      const [year, month, day] = event.date.split('-');
-      const [startHour, startMin] = event.time.split(' - ')[0].split(':');
-      const [endHour, endMin] = event.time.split(' - ')[1].split(':');
-      
-      const startDate = new Date(year, month - 1, day, startHour, startMin);
-      const endDate = new Date(year, month - 1, day, endHour, endMin);
-      
-      return `BEGIN:VEVENT
-SUMMARY:${event.title}
-DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-DESCRIPTION:${event.description}
-LOCATION:${event.location}
-END:VEVENT`;
-    }).join('\n');
-
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Église ETDV//Calendrier//FR
-${eventsICS}
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'calendrier-eglise.ics';
-    link.click();
-  };
-
-  const shareCalendar = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Calendrier de l\'Église',
-        text: 'Découvrez tous les programmes de notre église',
-        url: window.location.href
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Lien copié dans le presse-papiers !');
-    }
-  };
-
-  const selectedDayEvents = getEventsForSelectedDate();
+  const undated = useMemo(() => events.filter(e => !e.date), [events]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-          />
-
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", damping: 20 }}
-            className="fixed inset-4 md:inset-10 z-50 overflow-y-auto"
-          >
-            <div className="min-h-full flex items-center justify-center p-4">
-              <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-5xl relative">
-                {/* En-tête */}
-                <div className="bg-gradient-to-r from-accent to-accent/80 p-6 rounded-t-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CalendarIcon className="w-8 h-8 text-white" />
-                      <div>
-                        <h2 className="text-2xl font-bold text-white">Calendrier des Programmes</h2>
-                        <p className="text-white/80">Retrouvez tous nos événements</p>
-                      </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-2 md:inset-10 z-50 overflow-y-auto">
+            <div className="min-h-full flex items-center justify-center p-2">
+              <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-5xl">
+                <div className="bg-gradient-to-r from-accent to-accent/80 p-5 rounded-t-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CalendarIcon className="w-7 h-7 text-white" />
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Calendrier</h2>
+                      <p className="text-white/80 text-sm">Tous les programmes et événements</p>
                     </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    >
-                      <X className="w-6 h-6 text-white" />
-                    </button>
                   </div>
+                  <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg"><X className="w-5 h-5 text-white" /></button>
                 </div>
 
-                {/* Corps du modal */}
-                <div className="p-6">
-                  {/* Vue toggle */}
-                  <div className="flex justify-between items-center mb-6">
+                <div className="p-5 space-y-4">
+                  <div className="flex flex-wrap justify-between items-center gap-3">
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => setViewMode('month')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                          viewMode === 'month'
-                            ? 'bg-accent text-white'
-                            : 'bg-base-200 hover:bg-base-300'
-                        }`}
-                      >
-                        Vue Mois
+                      <button onClick={() => setViewMode('month')}
+                        className={`btn btn-sm ${viewMode === 'month' ? 'btn-accent' : 'btn-ghost'}`}>
+                        <Grid3X3 size={15} /> Mois
                       </button>
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                          viewMode === 'list'
-                            ? 'bg-accent text-white'
-                            : 'bg-base-200 hover:bg-base-300'
-                        }`}
-                      >
-                        Vue Liste
+                      <button onClick={() => setViewMode('list')}
+                        className={`btn btn-sm ${viewMode === 'list' ? 'btn-accent' : 'btn-ghost'}`}>
+                        <List size={15} /> Liste
                       </button>
                     </div>
-
-                    {/* Actions */}
                     <div className="flex gap-2">
-                      <button
-                        onClick={downloadCalendar}
-                        className="p-2 hover:bg-base-200 rounded-lg transition-colors"
-                        title="Télécharger le calendrier"
-                      >
-                        <Download className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={shareCalendar}
-                        className="p-2 hover:bg-base-200 rounded-lg transition-colors"
-                        title="Partager"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
+                      <button onClick={() => { const b = new Blob([''], {type:'text/calendar'}); const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='calendrier.ics';l.click(); }}
+                        className="btn btn-ghost btn-sm" title="Télécharger"><Download size={15} /></button>
+                      <button onClick={() => { navigator.clipboard?.writeText?.(window.location.href); }}
+                        className="btn btn-ghost btn-sm" title="Partager"><Share2 size={15} /></button>
                     </div>
                   </div>
 
                   {viewMode === 'month' ? (
-                    <div className="grid md:grid-cols-3 gap-6">
-                      {/* Mini calendrier */}
+                    <div className="grid md:grid-cols-3 gap-5">
                       <div className="md:col-span-2">
-                        <MiniCalendar
-                          currentDate={selectedDate}
-                          onDateChange={(day) => {
-                            setSelectedDate(new Date(
-                              selectedDate.getFullYear(),
-                              selectedDate.getMonth(),
-                              day
-                            ));
-                          }}
-                          events={activeEvents}
-                          onEventClick={onEventClick}
-                        />
+                        <MiniCalendar currentDate={new Date()} onDateSelect={setSelectedDate} events={events} />
                       </div>
-
-                      {/* Événements du jour sélectionné */}
-                      <div className="md:col-span-1">
+                      <div>
                         <div className="bg-base-200 rounded-xl p-4">
-                          <h3 className="font-semibold mb-3">
-                            {formatDateForDisplay(selectedDate)}
+                          <h3 className="font-semibold text-sm mb-3">
+                            {selectedDate ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Sélectionnez un jour'}
                           </h3>
-                          <div className="space-y-2 max-h-96 overflow-y-auto">
-                            {selectedDayEvents.length > 0 ? (
-                              selectedDayEvents.map(event => (
-                                <DayEvent
-                                  key={event.id}
-                                  event={event}
-                                  onClick={onEventClick}
-                                />
-                              ))
-                            ) : (
-                              <p className="text-center text-base-content/50 py-8">
-                                Aucun événement ce jour
-                              </p>
+                          <div className="space-y-2 max-h-80 overflow-y-auto">
+                            {dayEvents.length > 0 ? dayEvents.map(ev => (
+                              <div key={ev.id} onClick={() => onEventClick?.(ev)}
+                                className="p-3 rounded-lg bg-base-100 cursor-pointer hover:shadow-sm transition-all border-l-4"
+                                style={{ borderLeftColor: `var(--${ev.color || 'accent'})` }}>
+                                <p className="font-semibold text-sm">{ev.title}</p>
+                                {ev.time && <p className="text-xs text-base-content/60 flex items-center gap-1 mt-1"><Clock size={12} />{ev.time}</p>}
+                                {ev.location && <p className="text-xs text-base-content/50 flex items-center gap-1 mt-0.5"><MapPin size={12} />{ev.location}</p>}
+                              </div>
+                            )) : (
+                              <p className="text-center text-base-content/40 py-8 text-sm">Aucun événement ce jour</p>
                             )}
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    /* Vue Liste */
-                    <div className="space-y-4">
-                      {events
-                        .sort((a, b) => a.date.localeCompare(b.date))
-                        .map((event, index) => (
-                          <motion.div
-                            key={event.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="flex items-center gap-4 p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors cursor-pointer"
-                            onClick={() => onEventClick(event)}
-                          >
-                            <div className={`w-1 h-12 rounded-full bg-gradient-to-r ${event.color}`} />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium text-accent">
-                                  {new Date(event.date).toLocaleDateString('fr-FR', {
-                                    weekday: 'short',
-                                    day: 'numeric',
-                                    month: 'short'
-                                  })}
-                                </span>
-                                <span className="text-xs text-base-content/50">•</span>
-                                <span className="text-xs text-base-content/50">{event.time}</span>
+                    <div className="space-y-3">
+                      {/* Événements datés */}
+                      {sorted.length > 0 && <h3 className="font-semibold">Événements programmés</h3>}
+                      {sorted.map((ev, i) => (
+                        <motion.div key={ev.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+                          onClick={() => onEventClick?.(ev)}
+                          className="flex items-center gap-4 p-3 bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer transition-colors">
+                          <div className="text-center min-w-[48px]">
+                            <p className="text-lg font-bold text-accent">{new Date(ev.date + 'T12:00:00').getDate()}</p>
+                            <p className="text-xs text-base-content/50">{MONTHS[new Date(ev.date + 'T12:00:00').getMonth()].slice(0, 3)}</p>
+                          </div>
+                          <div className={`w-1 h-10 rounded-full ${COLOR_DOT[ev.color] || 'bg-accent'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{ev.title}</p>
+                            <p className="text-xs text-base-content/60">{ev.time}{ev.location ? ` · ${ev.location}` : ''}</p>
+                          </div>
+                          <ArrowRight size={16} className="text-base-content/30 flex-shrink-0" />
+                        </motion.div>
+                      ))}
+                      {/* Programmes sans date (hebdo avec jour) */}
+                      {undated.length > 0 && (
+                        <>
+                          <h3 className="font-semibold pt-4">Programmes hebdomadaires</h3>
+                          {undated.map((ev, i) => (
+                            <motion.div key={ev.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+                              onClick={() => onEventClick?.(ev)}
+                              className="flex items-center gap-4 p-3 bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer transition-colors">
+                              <div className={`w-1 h-10 rounded-full ${COLOR_DOT[ev.color] || 'bg-accent'}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm truncate">{ev.title}</p>
+                                <p className="text-xs text-base-content/60">{ev.day || ''}{ev.time ? ` · ${ev.time}` : ''}{ev.location ? ` · ${ev.location}` : ''}</p>
                               </div>
-                              <h4 className="font-semibold">{event.title}</h4>
-                              <p className="text-sm text-base-content/70">{event.location}</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-base-content/50" />
-                          </motion.div>
-                        ))}
+                              <ArrowRight size={16} className="text-base-content/30 flex-shrink-0" />
+                            </motion.div>
+                          ))}
+                        </>
+                      )}
+                      {sorted.length === 0 && undated.length === 0 && (
+                        <p className="text-center py-10 text-base-content/40">Aucun événement</p>
+                      )}
                     </div>
                   )}
-                </div>
-
-                {/* Pied du modal */}
-                <div className="border-t border-base-300 p-4 flex justify-end gap-3">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 rounded-lg hover:bg-base-200 transition-colors"
-                  >
-                    Fermer
-                  </button>
-                  <button className="btn btn-accent">
-                    <Bell className="w-4 h-4 mr-2" />
-                    Recevoir les rappels
-                  </button>
                 </div>
               </div>
             </div>
@@ -520,74 +235,39 @@ END:VCALENDAR`;
   );
 };
 
-// ==================== COMPOSANT BOUTON CALENDRIER ====================
 const CalendarButton = ({ events, onEventClick }) => {
-  const [fetchedEvents, setFetchedEvents] = useState([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [notification, setNotification] = useState({ show: false, message: '' });
+  const [fetched, setFetched] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [notif, setNotif] = useState({ show: false, msg: '' });
 
-  // Charger les événements depuis l'API si aucun n'est fourni
   useEffect(() => {
     if (!events) {
-      const fetchEvents = async () => {
-        try {
-          const { data } = await api.get('/api/programs');
-          setFetchedEvents(data);
-        } catch (err) {
-          console.error('Erreur chargement événements:', err);
-        }
-      };
-      fetchEvents();
+      api.get('/api/programs').then(({ data }) => setFetched(data)).catch(() => {});
     }
   }, [events]);
 
-  const activeEvents = events || fetchedEvents;
+  const allProgs = events || fetched;
+  const calendarEvents = useMemo(() => progToEvents(allProgs), [allProgs]);
 
-  const handleEventClick = (event) => {
-    if (onEventClick) {
-      onEventClick(event);
-    } else {
-      // Comportement par défaut
-      setNotification({
-        show: true,
-        message: `Événement sélectionné : ${event.title}`
-      });
-      setTimeout(() => setNotification({ show: false, message: '' }), 3000);
-    }
-  };
+  const showNotif = (msg) => { setNotif({ show: true, msg }); setTimeout(() => setNotif({ show: false, msg: '' }), 3000); };
 
   return (
     <>
-      {/* Bouton principal */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsCalendarOpen(true)}
-        className="btn btn-outline btn-lg text-white border-white hover:bg-white hover:text-accent transition-all duration-300"
-      >
-        <CalendarIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+        onClick={() => setOpen(true)}
+        className="btn btn-outline btn-lg text-white border-white hover:bg-white hover:text-accent transition-all">
+        <CalendarIcon className="w-5 h-5" />
         <span>Voir le calendrier</span>
       </motion.button>
 
-      {/* Modal Calendrier */}
-      <CalendarModal
-        isOpen={isCalendarOpen}
-        onClose={() => setIsCalendarOpen(false)}
-        events={events}
-        onEventClick={handleEventClick}
-      />
+      <CalendarModal isOpen={open} onClose={() => setOpen(false)} events={calendarEvents}
+        onEventClick={(ev) => { onEventClick?.(ev); showNotif(`Événement : ${ev.title}`); }} />
 
-      {/* Notification */}
       <AnimatePresence>
-        {notification.show && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-4 right-4 bg-accent text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50"
-          >
-            <Check className="w-5 h-5" />
-            <span>{notification.message}</span>
+        {notif.show && (
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-4 right-4 bg-accent text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50">
+            <Check className="w-5 h-5" /><span>{notif.msg}</span>
           </motion.div>
         )}
       </AnimatePresence>

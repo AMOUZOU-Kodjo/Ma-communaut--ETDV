@@ -58,7 +58,6 @@ const isSoundCloudUrl = (url) => {
 const getYouTubeEmbedUrl = (url) => {
   if (!url) return null;
 
-  // Patterns pour différentes URLs YouTube
   const patterns = [
     /youtube\.com\/watch\?v=([^&]+)/,
     /youtu\.be\/([^?]+)/,
@@ -73,7 +72,7 @@ const getYouTubeEmbedUrl = (url) => {
     }
   }
 
-  return url; // Retourne l'URL originale si ce n'est pas YouTube
+  return url;
 };
 
 const getYouTubeThumbnail = (url) => {
@@ -95,6 +94,13 @@ const getYouTubeThumbnail = (url) => {
 const isYouTubeUrl = (url) => {
   return url?.includes("youtube.com") || url?.includes("youtu.be");
 };
+
+const parseTags = (tags) => {
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === "string" && tags) return tags.split(",").map((t) => t.trim()).filter(Boolean);
+  return [];
+};
+
 // ==================== CONFIGURATION ====================
 const GALLERY_CONFIG = {
   itemsPerPage: 12,
@@ -151,6 +157,26 @@ const MediaCard = ({
   const Icon =
     type === "photos" ? Camera : type === "videos" ? Film : Headphones;
 
+  const isYouTubeUrl = (url) => {
+    return url?.includes("youtube.com") || url?.includes("youtu.be");
+  };
+
+  const getYouTubeThumbnail = (url) => {
+    const patterns = [
+      /youtube\.com\/watch\?v=([^&]+)/,
+      /youtu\.be\/([^?]+)/,
+      /youtube\.com\/embed\/([^?]+)/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
+      }
+    }
+    return null;
+  };
+
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -176,15 +202,7 @@ const MediaCard = ({
     }
   };
 
-  // Fonction pour sécuriser l'accès aux tags
-  const getTagsArray = (tags) => {
-    if (!tags) return [];
-    if (Array.isArray(tags)) return tags;
-    if (typeof tags === 'string') return tags.split(',').map(t => t.trim());
-    return [];
-  };
-
-  const tagsArray = getTagsArray(item.tags);
+  const isList = type === "videos" || type === "audios";
 
   return (
     <motion.div
@@ -195,7 +213,9 @@ const MediaCard = ({
       transition={{ delay: index * 0.1 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="group relative bg-base-200 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
+      className={`group relative bg-base-200 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer ${
+        isList ? "flex flex-row" : ""
+      }`}
       onClick={() => onOpen(item)}
     >
       {/* Bande de couleur */}
@@ -204,7 +224,7 @@ const MediaCard = ({
       />
 
       {/* Aperçu */}
-      <div className="relative h-48 sm:h-56 lg:h-64 overflow-hidden">
+      <div className={`relative overflow-hidden ${isList ? "w-48 h-32 shrink-0" : "h-48 sm:h-56 lg:h-64"}`}>
         {type === "photos" && (
           <>
             <img
@@ -234,15 +254,17 @@ const MediaCard = ({
                 />
                 {/* Overlay avec bouton play */}
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-red-600/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-110">
-                    <Play className="w-8 h-8 text-white ml-1" />
+                  <div className="w-10 h-10 bg-red-600/80 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Play className="w-5 h-5 text-white ml-0.5" />
                   </div>
                 </div>
                 {/* Badge YouTube */}
-                <div className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                  <Youtube className="w-3 h-3" />
-                  YouTube
-                </div>
+                {!isList && (
+                  <div className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                    <Youtube className="w-3 h-3" />
+                    YouTube
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -258,8 +280,8 @@ const MediaCard = ({
                   }}
                 />
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-primary/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-110">
-                    <Play className="w-8 h-8 text-white ml-1" />
+                  <div className="w-10 h-10 bg-primary/80 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Play className="w-5 h-5 text-white ml-0.5" />
                   </div>
                 </div>
               </>
@@ -272,7 +294,6 @@ const MediaCard = ({
             className={`relative w-full h-full bg-linear-to-br ${config.secondary}`}
           >
             {isSoundCloudUrl(item.url) ? (
-              // Pour SoundCloud, afficher un aperçu stylisé
               <>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-16 h-16 bg-orange-500/80 rounded-full flex items-center justify-center">
@@ -295,7 +316,6 @@ const MediaCard = ({
                 </div>
               </>
             ) : (
-              // Votre code existant pour les audios directs
               <>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex items-end space-x-1 h-24">
@@ -334,12 +354,14 @@ const MediaCard = ({
           </div>
         )}
         {/* Badge de type */}
-        <div
-          className={`absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-10`}
-        >
-          <Icon className="w-3 h-3" />
-          <span className="capitalize">{type}</span>
-        </div>
+        {!isList && (
+          <div
+            className={`absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-10`}
+          >
+            <Icon className="w-3 h-3" />
+            <span className="capitalize">{type}</span>
+          </div>
+        )}
         {/* Badge de durée */}
         {(type === "videos" || type === "audios") && item.duree && (
           <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded">
@@ -347,22 +369,24 @@ const MediaCard = ({
           </div>
         )}
         {/* Bouton téléchargement rapide */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDownload(item);
-          }}
-          className="absolute top-2 right-2 p-2 bg-black/50 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/70"
-          title="Télécharger"
-        >
-          <Download className="w-4 h-4 text-white" />
-        </button>
+        {!isList && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(item);
+            }}
+            className="absolute top-2 right-2 p-2 bg-black/50 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/70"
+            title="Télécharger"
+          >
+            <Download className="w-4 h-4 text-white" />
+          </button>
+        )}
       </div>
 
       {/* Informations */}
-      <div className="p-4">
+      <div className={`${isList ? "flex-1 flex flex-col justify-center p-4" : "p-4"}`}>
         <div className="flex items-start justify-between mb-2">
-          <h3 className="font-bold truncate flex-1">{item.titre}</h3>
+          <h3 className={`font-bold truncate flex-1 ${isList ? "text-base" : ""}`}>{item.titre}</h3>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -376,7 +400,7 @@ const MediaCard = ({
           </motion.button>
         </div>
 
-        <p className="text-xs text-base-content/60 line-clamp-2 mb-3">
+        <p className={`text-base-content/60 line-clamp-2 mb-3 ${isList ? "text-xs" : "text-xs"}`}>
           {item.description}
         </p>
 
@@ -395,19 +419,33 @@ const MediaCard = ({
             <span>{item.telechargements} téléch.</span>
           </div>
         </div>
+
+        {/* Tags */}
+        <div className={`flex flex-wrap gap-1 mt-2 ${!isList ? "hidden" : ""}`}>
+          {parseTags(item.tags).slice(0, 3).map((tag, i) => (
+            <span
+              key={i}
+              className={`text-[10px] px-2 py-0.5 rounded-full ${config.bg} ${config.accent}`}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* Tags - Version corrigée */}
-      <div className="px-4 pb-4 flex flex-wrap gap-1">
-        {tagsArray.slice(0, 3).map((tag, i) => (
-          <span
-            key={i}
-            className={`text-[10px] px-2 py-0.5 rounded-full ${config.bg} ${config.accent}`}
-          >
-            #{tag}
-          </span>
-        ))}
-      </div>
+      {/* Tags hors-liste */}
+      {!isList && (
+        <div className="px-4 pb-4 flex flex-wrap gap-1">
+          {parseTags(item.tags).slice(0, 3).map((tag, i) => (
+            <span
+              key={i}
+              className={`text-[10px] px-2 py-0.5 rounded-full ${config.bg} ${config.accent}`}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Effet de brillance au survol */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none">
@@ -499,16 +537,6 @@ const MediaModal = ({
       toast.error("Erreur lors du partage");
     }
   };
-
-  // Fonction pour sécuriser l'accès aux tags dans la modale
-  const getTagsArray = (tags) => {
-    if (!tags) return [];
-    if (Array.isArray(tags)) return tags;
-    if (typeof tags === 'string') return tags.split(',').map(t => t.trim());
-    return [];
-  };
-
-  const tagsArray = getTagsArray(item.tags);
 
   return (
     <AnimatePresence>
@@ -615,7 +643,7 @@ const MediaModal = ({
                 )}
                 
                 {type === "videos" && (
-                  <>
+                  <div className="relative w-full h-full group">
                     {isYouTubeUrl(item.url) ? (
                       <iframe
                         src={
@@ -640,7 +668,15 @@ const MediaModal = ({
                         }
                       />
                     )}
-                  </>
+                    {/* Description superposée sur la vidéo */}
+                    {item.description && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                        <p className="text-white/90 text-sm line-clamp-3 drop-shadow-lg">
+                          {item.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {type === "audios" && (
                   <div className="max-w-2xl w-full bg-base-200 rounded-2xl p-8">
@@ -675,7 +711,6 @@ const MediaModal = ({
                         />
                       </div>
                     ) : (
-                      // Votre code existant pour les audios directs
                       <>
                         <div className="relative w-40 h-40 mx-auto mb-8">
                           <div
@@ -774,12 +809,11 @@ const MediaModal = ({
                         </div>
                       </div>
 
-                      {/* Tags - Version corrigée */}
-                      {tagsArray.length > 0 && (
+                      {item.tags && (
                         <div>
                           <label className="text-xs opacity-60">Tags</label>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {tagsArray.map((tag, i) => (
+                            {parseTags(item.tags).map((tag, i) => (
                               <span
                                 key={i}
                                 className={`text-xs px-3 py-1 rounded-full ${GALLERY_CONFIG.colors[type].bg} ${GALLERY_CONFIG.colors[type].accent}`}
@@ -926,8 +960,7 @@ const Gallery = () => {
     };
     fetchMedia();
   }, []);
-
-  // Mettre à jour l'index courant
+// Mettre à jour l'index courant
   useEffect(() => {
     if (selectedItem) {
       const index = mediaItems[activeTab].findIndex(
@@ -962,12 +995,11 @@ const Gallery = () => {
       );
     }
 
-    // Filtre par tags - Version corrigée
+    // Filtre par tags
     if (selectedTags.length > 0) {
-      items = items.filter((item) => {
-        const itemTags = Array.isArray(item.tags) ? item.tags : [];
-        return selectedTags.every((tag) => itemTags.includes(tag));
-      });
+      items = items.filter((item) =>
+        selectedTags.every((tag) => parseTags(item.tags).includes(tag)),
+      );
     }
 
     // Tri
@@ -1005,13 +1037,11 @@ const Gallery = () => {
     setCurrentPage(1);
   }, [activeTab, search, selectedTags, sortBy]);
 
-  // Tags uniques - Version corrigée
+  // Tags uniques
   const allTags = useMemo(() => {
     const tags = new Set();
     mediaItems[activeTab]?.forEach((item) => {
-      if (Array.isArray(item.tags)) {
-        item.tags.forEach((tag) => tags.add(tag));
-      }
+      parseTags(item.tags).forEach((tag) => tags.add(tag));
     });
     return Array.from(tags);
   }, [activeTab, mediaItems]);
@@ -1094,34 +1124,6 @@ const Gallery = () => {
     },
     [playingAudio],
   );
-
-  if (loading) {
-    return (
-      <>
-        <NavBar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-base-content/70">Chargement de la galerie...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <>
-        <NavBar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
-            <p className="text-error">{error}</p>
-          </div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
@@ -1264,98 +1266,101 @@ const Gallery = () => {
 
           {/* Grille des médias */}
           <AnimatePresence mode="wait">
-            {paginatedMedia.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-base-content/60">Aucun média trouvé</p>
-              </div>
-            ) : (
-              <motion.div
-                key={activeTab + viewMode + currentPage}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 },
-                  },
-                }}
-                className={`grid ${
-                  viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                    : "grid-cols-1"
-                } gap-6`}
-              >
-                {paginatedMedia.map((item, index) => (
-                  <MediaCard
-                    key={item.id}
-                    item={item}
-                    type={activeTab}
-                    index={index}
-                    onOpen={setSelectedItem}
-                    onDownload={handleDownload}
-                    onLike={handleLike}
-                    isLiked={likedItems[item.id]}
-                    isPlaying={playingAudio === item.id}
-                    onPlay={handlePlayAudio}
-                  />
-                ))}
-              </motion.div>
-            )}
+            <motion.div
+              key={activeTab + viewMode + currentPage}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.05 },
+                },
+              }}
+              className={`grid ${
+                activeTab === "videos" || activeTab === "audios"
+                  ? "grid-cols-1 xl:grid-cols-2"
+                  : viewMode === "list"
+                    ? "grid-cols-1"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              } gap-6`}
+            >
+              {paginatedMedia.map((item, index) => (
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  type={activeTab}
+                  index={index}
+                  onOpen={setSelectedItem}
+                  onDownload={handleDownload}
+                  onLike={handleLike}
+                  isLiked={likedItems[item.id]}
+                  isPlaying={playingAudio === item.id}
+                  onPlay={handlePlayAudio}
+                />
+              ))}
+            </motion.div>
           </AnimatePresence>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-12">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg bg-base-200 hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+            <div className="flex flex-col items-center gap-4 mt-12">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="btn btn-sm bg-base-200 hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Précédent
+                </button>
 
-              {[...Array(totalPages)].map((_, i) => {
-                const page = i + 1;
-                if (
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 2 && page <= currentPage + 2)
-                ) {
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(page)}
-                      className={`min-w-[40px] h-10 rounded-lg font-medium transition-all ${
-                        currentPage === page
-                          ? "bg-accent text-white shadow-lg scale-105"
-                          : "bg-base-200 hover:bg-base-300"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                }
-                if (page === currentPage - 3 || page === currentPage + 3) {
-                  return (
-                    <span key={i} className="px-2">
-                      ...
-                    </span>
-                  );
-                }
-                return null;
-              })}
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 2 && page <= currentPage + 2)
+                  ) {
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(page)}
+                        className={`hidden sm:inline-flex min-w-[40px] h-10 rounded-lg font-medium transition-all ${
+                          currentPage === page
+                            ? "bg-accent text-white shadow-lg scale-105"
+                            : "bg-base-200 hover:bg-base-300"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  }
+                  if (page === currentPage - 3 || page === currentPage + 3) {
+                    return (
+                      <span key={i} className="hidden sm:inline px-2">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
 
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg bg-base-200 hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="btn btn-sm bg-base-200 hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed gap-1"
+                >
+                  Suivant
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-base-content/50">
+                Page {currentPage} sur {totalPages}
+              </p>
             </div>
           )}
         </section>

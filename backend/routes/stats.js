@@ -4,6 +4,26 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/stats/public (public - chiffres clés)
+router.get('/public', async (req, res) => {
+  try {
+    const [posts, media, programs, subscribers] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int as total FROM posts'),
+      pool.query('SELECT COUNT(*)::int as total FROM media'),
+      pool.query('SELECT COUNT(*)::int as total FROM programs'),
+      pool.query("SELECT COUNT(*)::int as total FROM subscribers WHERE active = TRUE"),
+    ]);
+    res.json({
+      posts: posts.rows[0].total,
+      media: media.rows[0].total,
+      programs: programs.rows[0].total,
+      subscribers: subscribers.rows[0].total,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET /api/stats (admin - résumé global)
 router.get('/', authenticateToken, async (req, res) => {
   try {

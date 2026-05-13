@@ -1,7 +1,8 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useEffect, useState, useRef } from "react";
 import { FaFacebook, FaWhatsapp, FaTwitter, FaYoutube, FaHeart, FaCross, FaBible } from "react-icons/fa";
+import { Heart, Cross, BookOpen, Clock, Users, Handshake, ArrowRight, Sparkles, Sunrise } from "lucide-react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import monImage from "../assets/logo.jpg";
 import Footer from "./Footer";
 import Title from "./Title";
@@ -10,39 +11,19 @@ import NavBar from "./NavBar";
 // Configuration centralisée
 const HOME_CONFIG = {
   socialLinks: [
-    {
-      icon: FaFacebook,
-      url: "https://www.facebook.com/profile.php?id=61564484227797",
-      label: "Facebook",
-      color: "hover:bg-blue-600"
-    },
-    {
-      icon: FaWhatsapp,
-      url: "https://wa.me/228910387",
-      label: "WhatsApp",
-      color: "hover:bg-green-600"
-    },
-    {
-      icon: FaTwitter,
-      url: "https://twitter.com/etde815",
-      label: "Twitter",
-      color: "hover:bg-sky-500"
-    },
-    {
-      icon: FaYoutube,
-      url: "https://www.youtube.com/@etde815",
-      label: "YouTube",
-      color: "hover:bg-red-600"
-    }
+    { Icon: FaFacebook, url: "https://www.facebook.com/profile.php?id=61564484227797", label: "Facebook", color: "hover:bg-blue-600" },
+    { Icon: FaWhatsapp, url: "https://wa.me/228910387", label: "WhatsApp", color: "hover:bg-green-600" },
+    { Icon: FaTwitter, url: "https://twitter.com/etde815", label: "Twitter", color: "hover:bg-sky-500" },
+    { Icon: FaYoutube, url: "https://www.youtube.com/@etde815", label: "YouTube", color: "hover:bg-red-600" }
   ],
   bibleVerse: {
     text: "Venez à moi, vous tous qui êtes fatigués et chargés, et je vous donnerai du repos.",
     reference: "Matthieu 11:28"
   },
   features: [
-    { icon: FaHeart, text: "Amour et Compassion" },
-    { icon: FaCross, text: "Foi et Espérance" },
-    { icon: FaBible, text: "Enseignement Biblique" }
+    { Icon: FaHeart, text: "Amour et Compassion" },
+    { Icon: FaCross, text: "Foi et Espérance" },
+    { Icon: FaBible, text: "Enseignement Biblique" }
   ]
 };
 
@@ -66,8 +47,6 @@ const SocialIcon = memo(({ Icon, url, label, color }) => {
       transition={{ duration: 0.3 }}
     >
       <Icon className="transition-transform duration-300 group-hover:scale-110" />
-      
-      {/* Tooltip */}
       <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 
                        text-xs bg-base-300 px-2 py-1 rounded opacity-0 
                        group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
@@ -83,12 +62,13 @@ SocialIcon.displayName = 'SocialIcon';
 const FeatureCard = memo(({ Icon, text, index }) => {
   return (
     <motion.div
-      className="flex items-center gap-3 p-3 bg-base-200/50 rounded-lg"
+      className="group relative flex items-center gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30 hover:border-accent/20 transition-all duration-300 hover:shadow-md"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.1 }}
+      whileHover={{ scale: 1.03 }}
     >
-      <div className="p-2 bg-accent/10 rounded-full">
+      <div className="p-2.5 bg-gradient-to-br from-accent/20 to-accent/5 rounded-xl group-hover:scale-110 transition-transform">
         <Icon className="text-accent text-xl" />
       </div>
       <span className="text-base-content/80 font-medium">{text}</span>
@@ -98,21 +78,36 @@ const FeatureCard = memo(({ Icon, text, index }) => {
 
 FeatureCard.displayName = 'FeatureCard';
 
+// Animated counter
+const AnimatedCounter = ({ value, suffix }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+
+  useEffect(() => {
+    if (!inView) return;
+    const duration = 2000;
+    const steps = 60;
+    const increment = value / steps;
+    let current = 0;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= value) { setCount(value); clearInterval(timer); }
+      else setCount(Math.floor(current));
+    }, duration / steps);
+    return () => clearInterval(timer);
+  }, [inView, value]);
+
+  return <span ref={ref}>{count}{suffix}</span>;
+};
+
 // Composant principal
 const Home = () => {
-  // Mémorisation des données
   const { socialLinks, bibleVerse, features } = useMemo(() => HOME_CONFIG, []);
 
-  // Variantes d'animation
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.2, delayChildren: 0.3 } }
   };
 
   const itemVariants = {
@@ -123,11 +118,10 @@ const Home = () => {
   return (
     <>
       <NavBar />
-      
       <main className="min-h-screen">
-        {/* Hero Section avec parallax */}
-        <section className="relative overflow-hidden bg-linear-to-br from-base-200 to-base-300">
-          {/* Motif de fond décoratif */}
+        {/* ===== HERO SECTION ===== */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-base-200 via-base-100 to-base-300">
+          {/* Motif de fond */}
           <div className="absolute inset-0 opacity-5">
             <div className="absolute inset-0" style={{
               backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 1px)',
@@ -135,18 +129,11 @@ const Home = () => {
             }} />
           </div>
 
-          {/* Éléments décoratifs flottants */}
+          {/* Éléments décoratifs */}
           <motion.div
             className="absolute top-20 right-10 w-64 h-64 bg-accent/5 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3]
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
 
           <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
@@ -182,7 +169,6 @@ const Home = () => {
                   </motion.div>
 
                   <div className="bg-base-200/80 backdrop-blur-sm border-l-4 border-accent p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300">
-                    {/* Message d'accueil */}
                     <div className="prose prose-lg max-w-none">
                       <p className="text-base-content/80 leading-relaxed text-lg">
                         Nous sommes heureux de vous accueillir sur le site officiel de
@@ -192,12 +178,12 @@ const Home = () => {
 
                       {/* Verset biblique */}
                       <motion.div
-                        className="my-8 p-6 bg-linear-to-r from-accent/20 to-transparent rounded-xl"
+                        className="my-8 p-6 bg-gradient-to-r from-accent/20 to-transparent rounded-xl border border-accent/10"
                         whileHover={{ scale: 1.02 }}
                         transition={{ type: "spring", stiffness: 300 }}
                       >
                         <blockquote className="text-center">
-                          <p className="text-xl md:text-xl font-bold  mb-3">
+                          <p className="text-xl md:text-xl font-bold mb-3">
                             "{bibleVerse.text}"
                           </p>
                           <footer className="text-accent font-semibold">
@@ -211,7 +197,7 @@ const Home = () => {
                         {features.map((feature, index) => (
                           <FeatureCard 
                             key={feature.text}
-                            Icon={feature.icon}
+                            Icon={feature.Icon}
                             text={feature.text}
                             index={index}
                           />
@@ -220,10 +206,7 @@ const Home = () => {
 
                       {/* Actions */}
                       <div className="flex flex-col sm:flex-row justify-center lg:justify-start items-center gap-6 mt-8">
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                           <Link
                             to="/contact"
                             className="btn btn-accent btn-lg px-8 gap-2 shadow-lg hover:shadow-xl transition-all"
@@ -240,7 +223,7 @@ const Home = () => {
                           {socialLinks.map((social, index) => (
                             <SocialIcon
                               key={index}
-                              Icon={social.icon}
+                              Icon={social.Icon}
                               url={social.url}
                               label={social.label}
                               color={social.color}
@@ -262,7 +245,7 @@ const Home = () => {
               >
                 <div className="relative group">
                   {/* Cercles décoratifs */}
-                  <div className="absolute inset-0 rounded-full bg-accent/20 blur-3xl group-hover:bg-accent/30 transition-all duration-500" />
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-accent/20 to-primary/20 blur-3xl group-hover:from-accent/30 group-hover:to-primary/30 transition-all duration-500" />
                   
                   {/* Image principale */}
                   <motion.div
@@ -272,26 +255,17 @@ const Home = () => {
                   >
                     <img
                       src={monImage}
-                      alt="Logo de l'église - Temple du Dieu Vivant"
-                      className="w-64 h-64 md:w-96 md:h-96 object-cover rounded-full 
-                               shadow-2xl border-4 border-accent
-                               group-hover:shadow-accent/50 transition-all duration-300"
+                      alt="Logo de l'église"
+                      className="w-64 h-64 md:w-96 md:h-96 object-cover rounded-full shadow-2xl border-4 border-accent/30 group-hover:border-accent/60 group-hover:shadow-accent/30 transition-all duration-300"
                       loading="lazy"
                     />
                   </motion.div>
 
                   {/* Badge flottant */}
                   <motion.div
-                    className="absolute -bottom-4 -right-4 bg-accent text-white 
-                               px-4 py-2 rounded-full text-sm font-semibold shadow-lg z-20"
-                    animate={{
-                      y: [0, -5, 0],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
+                    className="absolute -bottom-4 -right-4 bg-accent text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg z-20"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                   >
                     Depuis 2000 ✨
                   </motion.div>
@@ -301,37 +275,39 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Section Statistiques */}
-        <section className="bg-base-200 py-12">
+        {/* ===== STATS SECTION ===== */}
+        <section className="bg-gradient-to-b from-base-200 to-base-100 py-16">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {[
-                { value: "24+", label: "Années de service", icon: "⏳" },
-                { value: "500+", label: "Membres", icon: "👥" },
-                { value: "1000+", label: "Âmes touchées", icon: "❤️" },
-                { value: "50+", label: "Projets", icon: "🤝" }
+                { Icon: Clock, value: 24, suffix: "+", label: "Années de service" },
+                { Icon: Users, value: 500, suffix: "+", label: "Membres" },
+                { Icon: Heart, value: 1000, suffix: "+", label: "Âmes touchées" },
+                { Icon: Handshake, value: 50, suffix: "+", label: "Projets" }
               ].map((stat, index) => (
                 <motion.div
                   key={stat.label}
-                  className="text-center"
+                  className="relative text-center p-6 bg-base-200/60 rounded-2xl border border-base-300/30 hover:border-accent/20 transition-all duration-300 group"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -4 }}
                 >
-                  <div className="text-4xl mb-2">{stat.icon}</div>
-                  <div className="text-2xl font-bold text-accent">{stat.value}</div>
-                  <div className="text-sm text-base-content/60">{stat.label}</div>
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <stat.Icon className="text-accent text-xl" />
+                  </div>
+                  <div className="text-2xl font-bold text-accent">
+                    <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                  </div>
+                  <div className="text-sm text-base-content/60 mt-1">{stat.label}</div>
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
       </main>
-
-      
     </>
   );
 };
 
-// Optimisation avec memo
 export default memo(Home);
