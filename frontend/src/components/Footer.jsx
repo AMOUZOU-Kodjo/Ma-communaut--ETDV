@@ -179,7 +179,7 @@ const Footer = () => {
         </div>
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-pink-500 to-accent" />
 
-        <div className="container mx-auto  relative z-10">
+        <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
             {/* Logo et infos */}
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}
