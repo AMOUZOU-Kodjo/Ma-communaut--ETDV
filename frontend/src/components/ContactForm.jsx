@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { 
+import {
   Mail, Phone, MapPin, Send, CheckCircle, AlertCircle, Loader,
-  Clock, Copy, Check, FileText, XCircle, Info, Shield, ArrowRight, Sparkles
+  Clock, Copy, Check, FileText, XCircle, Info, Shield, ArrowRight, Sparkles, Church
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../context/AuthContext";
+import Footer from "./Footer";
 
 const REQUEST_TIMEOUT = 15000;
 const MAX_RETRY_COUNT = 3;
@@ -143,26 +144,45 @@ const ContactForm = () => {
         )}
       </AnimatePresence>
 
-      <section className="relative min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 overflow-hidden">
+      <section className="relative min-h-screen pb-24 bg-gradient-to-br from-base-200 via-base-100 to-base-300 overflow-hidden">
         {/* Éléments décoratifs */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-          <div className="absolute top-20 -left-32 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 -right-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 L35 20 L50 20 L38 30 L42 45 L30 36 L18 45 L22 30 L10 20 L25 20 Z' fill='currentColor'/%3E%3C/svg%3E")`,
+            backgroundSize: '80px 80px'
+          }} />
+          <motion.div
+            className="absolute top-20 -left-32 w-96 h-96 bg-accent/5 rounded-full blur-3xl"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute bottom-20 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.3, 0.15] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8 relative z-10">
           {/* En-tête */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-accent/10 text-accent text-sm px-4 py-1.5 rounded-full mb-4">
-              <Sparkles className="w-4 h-4" />
-              <span>Nous sommes à votre écoute</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Contactez-nous
+            <motion.div
+              className="inline-flex items-center gap-2 bg-accent/10 text-accent text-sm px-4 py-1.5 rounded-full mb-4 border border-accent/20"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Church className="w-4 h-4" />
+              <span>Nous sommes a votre ecoute</span>
+            </motion.div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Contactez-nous
+              </span>
             </h1>
-            <p className="text-lg text-base-content/70 max-w-lg mx-auto">
-              Nous sommes là pour répondre à vos questions et prier avec vous
+            <p className="text-lg text-base-content/70 max-w-xl mx-auto leading-relaxed">
+              Nous sommes la pour repondre a vos questions, vous soutenir dans la priere
+              et vous accueillir au sein de notre communaute
             </p>
           </motion.div>
 
@@ -272,6 +292,8 @@ const ContactForm = () => {
           </div>
         </div>
       </section>
+
+      
     </>
   );
 };
